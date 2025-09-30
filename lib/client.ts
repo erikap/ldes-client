@@ -138,7 +138,7 @@ export class Client {
             : df.namedNode(this.config.url);
 
         //*****************************************************************
-        // TODO: Handle the case where there are multiple views available 
+        // TODO: Handle the case where there are multiple views available
         // through a discovery process.
         //*****************************************************************
         const viewQuads = root.data.getQuads(null, TREE.terms.view, null, null);
@@ -158,8 +158,8 @@ export class Client {
             }
         }
 
-        // This is the actual LDES IRI found in the RDF data. 
-        // Might be different from the configured ldesId due to HTTP redirects 
+        // This is the actual LDES IRI found in the RDF data.
+        // Might be different from the configured ldesId due to HTTP redirects
         const ldesUri = viewQuads[0]?.subject || root.data.getQuads(null, RDF.terms.type, LDES.terms.EventStream)[0].subject;
         if (!ldesUri) {
             this.logger.error("Could not find the LDES IRI in the fetched RDF data.");
@@ -184,7 +184,7 @@ export class Client {
         const versionState = this.config.lastVersionOnly
             ? this.stateFactory.build<Map<string, Date>>(
                 "versions",
-                (map) => {
+                async (map) => {
                     const arr = [...map.entries()];
                     return JSON.stringify(arr);
                 },

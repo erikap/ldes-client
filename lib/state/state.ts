@@ -50,13 +50,13 @@ export class SimpleState implements State {
 export type FileStateFactoryItem<T> = {
     name: string;
     state: StateT<T>;
-    serialize: (item: T) => string;
+    serialize: (item: T) => Promise<string>;
 };
 
 export interface StateFactory {
     build<T>(
         name: string,
-        serialize: (item: T) => string,
+        serialize: (item: T) => Promise<string>,
         deserialize: (item: string) => T | undefined,
         create: () => T,
     ): StateT<T>;
@@ -67,7 +67,7 @@ export interface StateFactory {
 export class NoStateFactory implements StateFactory {
     build<T>(
         _name: string,
-        _serialize: (item: T) => string,
+        _serialize: (item: T) => Promise<string>,
         deserialize: (item: string) => T | undefined,
         create: () => T,
     ): StateT<T> {
@@ -97,7 +97,7 @@ export class FileStateFactory implements StateFactory {
     async write() {
         const out: { [label: string]: string } = {};
         for (const element of this.elements) {
-            out[element.name] = element.serialize(element.state.item);
+            out[element.name] = await element.serialize(element.state.item);
         }
 
         const jsonStream = new JsonStreamStringify(out);
@@ -107,7 +107,7 @@ export class FileStateFactory implements StateFactory {
 
     build<T>(
         name: string,
-        serialize: (item: T) => string,
+        serialize: (item: T) => Promise<string>,
         deserialize: (item: string) => T | undefined,
         create: () => T,
     ): StateT<T> {
@@ -118,7 +118,7 @@ export class FileStateFactory implements StateFactory {
         const state = new StateT<T>(deserialize, create, found);
         this.elements.push({
             name,
-            serialize: <(item: unknown) => string>serialize,
+            serialize: <(item: unknown) => Promise<string>>serialize,
             state,
         });
 

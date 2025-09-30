@@ -1,3 +1,5 @@
+import { JsonStreamStringify } from 'json-stream-stringify';
+import { text } from 'node:stream/consumers';
 import { StateT } from "../state";
 import { getLoggerFor } from "../utils/";
 
@@ -30,17 +32,17 @@ export type ModulatorEvents<T> = {
  * Modulator is a state and flow management structure that buffers, ranks and handles elements (T)
  * when its factory is not paused and when not too many elements are active at once.
  * It keeps track of the state of all encountered elements and data entities (M) derived from such elements.
- * 
+ *
  * Possible states for elements T are:
  * - Todo: element has been encountered but it has not been handled yet.
  * - InFlight: element is currently being handled.
  * - Mutable: element has been handled but it needs to be handled again in the future.
  * - Immutable: element has been handled and there is no need to handle it again anymore.
- * 
+ *
  * Possible states for data entities M are:
- * - Unemitted: data entity has been extracted but has not been emitted yet. 
- *              This is relevant when the modulator follows a ordered strategy, 
- *              where data entities are buffered and are emitted only when possible. 
+ * - Unemitted: data entity has been extracted but has not been emitted yet.
+ *              This is relevant when the modulator follows a ordered strategy,
+ *              where data entities are buffered and are emitted only when possible.
  * - Emitted: data entity has been emitted.
  */
 export interface Modulator<T, M> {
@@ -163,15 +165,18 @@ export class ModulatorFactory {
     ): Modulator<T, M> {
         const state = this.factory.build<ModulatorInstanceState<T, M>>(
             name,
-            (stateObj) => JSON.stringify(stateObj, (_, value) => {
-                if (value instanceof Set) {
-                    return { datatype: "Set", value: Array.from(value) };
-                } else if (value instanceof Map) {
-                    return { datatype: "Map", value: Array.from(value.entries()) };
-                } else {
-                    return value;
-                }
-            }),
+            (stateObj) => {
+                const jsonStream = new JsonStreamStringify(stateObj, (_: any, value: any) => {
+                    if (value instanceof Set) {
+                        return { datatype: "Set", value: Array.from(value) };
+                    } else if (value instanceof Map) {
+                        return { datatype: "Map", value: Array.from(value.entries()) };
+                    } else {
+                        return value;
+                    }
+                });
+                return text(jsonStream);
+            },
             (input) => {
                 return JSON.parse(input, (_, value) => {
                     if (value && value.datatype === "Set") {

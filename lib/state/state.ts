@@ -1,3 +1,5 @@
+import { JsonStreamStringify } from 'json-stream-stringify';
+import { text } from 'node:stream/consumers';
 import { storage } from "./storage";
 
 export interface State {
@@ -92,13 +94,15 @@ export class FileStateFactory implements StateFactory {
         }
     }
 
-    write() {
+    async write() {
         const out: { [label: string]: string } = {};
         for (const element of this.elements) {
             out[element.name] = element.serialize(element.state.item);
         }
 
-        storage.setItem(this.location, JSON.stringify(out));
+        const jsonStream = new JsonStreamStringify(out);
+        const jsonString = await text(jsonStream);
+        storage.setItem(this.location, jsonString);
     }
 
     build<T>(

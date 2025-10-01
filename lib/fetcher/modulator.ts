@@ -1,5 +1,4 @@
-import { JsonStreamStringify } from 'json-stream-stringify';
-import { text } from 'node:stream/consumers';
+import { JsonStreamStringify } from "json-stream-stringify";
 import { StateT } from "../state";
 import { getLoggerFor } from "../utils/";
 
@@ -165,18 +164,15 @@ export class ModulatorFactory {
     ): Modulator<T, M> {
         const state = this.factory.build<ModulatorInstanceState<T, M>>(
             name,
-            (stateObj) => {
-                const jsonStream = new JsonStreamStringify(stateObj, (_: any, value: any) => {
-                    if (value instanceof Set) {
-                        return { datatype: "Set", value: Array.from(value) };
-                    } else if (value instanceof Map) {
-                        return { datatype: "Map", value: Array.from(value.entries()) };
-                    } else {
-                        return value;
-                    }
-                });
-                return text(jsonStream);
-            },
+            (stateObj) => new JsonStreamStringify(stateObj, (_: any, value: any) => {
+                if (value instanceof Set) {
+                    return { datatype: "Set", value: Array.from(value) };
+                } else if (value instanceof Map) {
+                    return { datatype: "Map", value: Array.from(value.entries()) };
+                } else {
+                    return value;
+                }
+            }),
             (input) => {
                 return JSON.parse(input, (_, value) => {
                     if (value && value.datatype === "Set") {

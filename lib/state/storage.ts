@@ -1,7 +1,10 @@
+import { text } from "node:stream/consumers";
+import { Readable } from "node:stream";
+
 interface Storage {
     getItem(key: string): string;
 
-    setItem(key: string, value: string): void;
+    setItem(key: string, value: Readable): void;
 
     removeItem(key: string): void;
 }
@@ -24,7 +27,7 @@ if (typeof window === "undefined") {
             const data = fs.readFileSync(key, "utf8");
             return data;
         },
-        setItem: (key: string, value: string) => {
+        setItem: (key: string, value: Readable) => {
             fs.writeFileSync(key, value, "utf8");
         },
         removeItem: (key: string) => {
@@ -43,8 +46,9 @@ if (typeof window === "undefined") {
             if (data) return data;
             throw "Key not found in local storage";
         },
-        setItem: (key: string, value: string) => {
-            localStorage.setItem(key, value);
+        setItem: async (key: string, value: Readable) => {
+            const valueString = await text(value);
+            localStorage.setItem(key, valueString);
         },
         removeItem: (key: string) => {
             localStorage.removeItem(key);

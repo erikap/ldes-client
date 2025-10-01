@@ -1,5 +1,6 @@
 import { RdfDereferencer, rdfDereferencer } from "rdf-dereference";
 import { LDES, RDF, TREE } from "@treecg/types";
+import { JsonStreamStringify } from "json-stream-stringify";
 import { CBDShapeExtractor } from "extract-cbd-shape";
 import { RdfStore } from "rdf-stores";
 import { DataFactory } from "rdf-data-factory";
@@ -184,9 +185,9 @@ export class Client {
         const versionState = this.config.lastVersionOnly
             ? this.stateFactory.build<Map<string, Date>>(
                 "versions",
-                async (map) => {
+                (map) => {
                     const arr = [...map.entries()];
-                    return JSON.stringify(arr);
+                    return new JsonStreamStringify(arr);
                 },
                 (inp) => {
                     const obj = JSON.parse(inp);

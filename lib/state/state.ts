@@ -1,5 +1,5 @@
-import { JsonStreamStringify } from 'json-stream-stringify';
-import { text } from 'node:stream/consumers';
+import { JsonStreamStringify } from "json-stream-stringify";
+import { Readable } from "node:stream";
 import { storage } from "./storage";
 
 export interface State {
@@ -50,13 +50,13 @@ export class SimpleState implements State {
 export type FileStateFactoryItem<T> = {
     name: string;
     state: StateT<T>;
-    serialize: (item: T) => Promise<string>;
+    serialize: (item: T) => Readable;
 };
 
 export interface StateFactory {
     build<T>(
         name: string,
-        serialize: (item: T) => Promise<string>,
+        serialize: (item: T) => Readable,
         deserialize: (item: string) => T | undefined,
         create: () => T,
     ): StateT<T>;
@@ -67,7 +67,7 @@ export interface StateFactory {
 export class NoStateFactory implements StateFactory {
     build<T>(
         _name: string,
-        _serialize: (item: T) => Promise<string>,
+        _serialize: (item: T) => Readable,
         deserialize: (item: string) => T | undefined,
         create: () => T,
     ): StateT<T> {
@@ -94,20 +94,18 @@ export class FileStateFactory implements StateFactory {
         }
     }
 
-    async write() {
-        const out: { [label: string]: string } = {};
+    write() {
+        const out: { [label: string]: Readable } = {};
         for (const element of this.elements) {
-            out[element.name] = await element.serialize(element.state.item);
+            out[element.name] = element.serialize(element.state.item);
         }
 
-        const jsonStream = new JsonStreamStringify(out);
-        const jsonString = await text(jsonStream);
-        storage.setItem(this.location, jsonString);
+        storage.setItem(this.location, new JsonStreamStringify(out));
     }
 
     build<T>(
         name: string,
-        serialize: (item: T) => Promise<string>,
+        serialize: (item: T) => Readable,
         deserialize: (item: string) => T | undefined,
         create: () => T,
     ): StateT<T> {
@@ -118,7 +116,7 @@ export class FileStateFactory implements StateFactory {
         const state = new StateT<T>(deserialize, create, found);
         this.elements.push({
             name,
-            serialize: <(item: unknown) => Promise<string>>serialize,
+            serialize: <(item: unknown) => Readable>serialize,
             state,
         });
 

@@ -57,21 +57,21 @@ export interface StateFactory {
     build<T>(
         name: string,
         serialize: (item: T) => Readable,
-        deserialize: (item: string) => T | undefined,
+        deserialize: (item: Readable) => Promise<T>,
         create: () => T,
-    ): StateT<T>;
+    ): Promise<StateT<T>>;
 
     write(): Promise<void>;
 }
 
 export class NoStateFactory implements StateFactory {
-    build<T>(
+    async build<T>(
         _name: string,
         _serialize: (item: T) => Readable,
-        deserialize: (item: string) => T | undefined,
+        deserialize: (item: Readable) => Promise<T>,
         create: () => T,
-    ): StateT<T> {
-        return new StateT<T>(deserialize, create);
+    ): Promise<StateT<T>> {
+        return new StateT<T>(create());
     }
     async write(): Promise<void> { }
 }
@@ -79,41 +79,62 @@ export class NoStateFactory implements StateFactory {
 export class FileStateFactory implements StateFactory {
     private location: string;
     private elements: FileStateFactoryItem<unknown>[];
-    private found: { [label: string]: string };
 
     constructor(location: string) {
         this.location = location;
         this.elements = [];
+    }
 
-        this.found = {};
-        try {
-            const item = storage.getItem(location);
-            this.found = JSON.parse(item);
-        } catch (ex: unknown) {
-            // pass
-        }
+    locationForElement(name: string) {
+      const i = this.location.lastIndexOf('.');
+      if (i > 0) {
+        return this.location.slice(0, i) + `-${name}` + this.location.slice(i);
+      } else {
+        return `${this.location}-${name}`
+      }
     }
 
     async write(): Promise<void> {
         const out: { [label: string]: Readable } = {};
         for (const element of this.elements) {
-            out[element.name] = element.serialize(element.state.item);
+            const stream = element.serialize(element.state.item);
+            const elementLocation = this.locationForElement(element.name);
+            stream.on('error', (err) => console.log(`Failed to serialize JSON stream to ${elementLocation}: ${err}`));
+            stream.on('end', () => console.log(`Finished saving state for element ${element.name} to ${elementLocation}`));
+            await storage.setItem(elementLocation, stream);
+            // out[element.name] = stream;
         }
 
-        storage.setItem(this.location, new JsonStreamStringify(out));
+        // const jsonStream = new JsonStreamStringify(out);
+        // jsonStream.on('error', (err: any, input: any, path: any) => console.log(`Failed to serialize JSON stream on path ${path}: ${err}`));
+        // jsonStream.on('end', () => console.log('Finished serializing JSON'));
+        // await storage.setItem(this.location, jsonStream);
     }
 
-    build<T>(
+    async build<T>(
         name: string,
         serialize: (item: T) => Readable,
-        deserialize: (item: string) => T | undefined,
+        deserialize: (item: Readable) => Promise<T>,
         create: () => T,
-    ): StateT<T> {
+    ): Promise<StateT<T>> {
         const out = this.elements.find((x) => x.name == name);
         if (out) return <StateT<T>>out.state;
 
-        const found: string | undefined = this.found[name];
-        const state = new StateT<T>(deserialize, create, found);
+        const elementLocation = this.locationForElement(name);
+        let stateItem: T;
+        try {
+          console.log(`Checking saved state for element ${name} at ${elementLocation}`);
+          const found = storage.getItem(elementLocation);
+          console.log(`Found saved state for element ${name} at ${elementLocation}`);
+          stateItem = await deserialize(found);
+          console.log(`Restored saved state for element ${name}`);
+        } catch (ex) {
+          console.log(`Something went wrong while restoring state for element ${name} at ${elementLocation}`);
+          console.log(ex);
+          stateItem = create();
+          // pass
+        }
+        const state = new StateT<T>(stateItem);
         this.elements.push({
             name,
             serialize: <(item: unknown) => Readable>serialize,
@@ -126,16 +147,7 @@ export class FileStateFactory implements StateFactory {
 
 export class StateT<T> {
     item: T;
-    constructor(
-        deserialize: (item: string) => T | undefined,
-        create: () => T,
-        prev?: string,
-    ) {
-        const item = prev ? deserialize(prev) : create();
-        if (item) {
-            this.item = item;
-        } else {
-            this.item = create();
-        }
+    constructor(item: T) {
+        this.item = item;
     }
 }

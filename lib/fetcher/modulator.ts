@@ -1,4 +1,5 @@
-import { JsonStreamStringify } from "json-stream-stringify";
+// @ts-ignore
+import bfj from "bfj";
 import { StateT } from "../state";
 import { getLoggerFor } from "../utils/";
 
@@ -156,33 +157,38 @@ export class ModulatorFactory {
     /**
      * Note: `T` and `M` should be plain javascript objects (because that how state is saved)
      */
-    create<T, M>(
+    async create<T, M>(
         name: string,
         ranker: Ranker<Indexed<T>>,
         notifier: Notifier<ModulatorEvents<T>, unknown>,
         parse?: (item: unknown) => T,
-    ): Modulator<T, M> {
-        const state = this.factory.build<ModulatorInstanceState<T, M>>(
+    ): Promise<Modulator<T, M>> {
+        const state = await this.factory.build<ModulatorInstanceState<T, M>>(
             name,
-            (stateObj) => new JsonStreamStringify(stateObj, (_: any, value: any) => {
-                if (value instanceof Set) {
-                    return { datatype: "Set", value: Array.from(value) };
-                } else if (value instanceof Map) {
-                    return { datatype: "Map", value: Array.from(value.entries()) };
-                } else {
-                    return value;
-                }
-            }),
-            (input) => {
-                return JSON.parse(input, (_, value) => {
-                    if (value && value.datatype === "Set") {
-                        return new Set(value.value);
-                    } else if (value && value.datatype === "Map") {
-                        return new Map(value.value);
-                    } else {
-                        return value;
+            (stateObj) => {
+              const stateObjDatatype: any = {};
+                for (const key of Object.keys(stateObj)) {
+                  let value = (stateObj as any)[key];
+                    if (value instanceof Set) {
+                        value = { datatype: "Set", value: Array.from(value) };
+                    } else if (value instanceof Map) {
+                        value = { datatype: "Map", value: Array.from(value.entries()) };
                     }
-                }) as ModulatorInstanceState<T, M>;
+                    stateObjDatatype[key] = value;
+                }
+                return bfj.streamify(stateObjDatatype);
+            },
+            async (input) => {
+                const obj = await bfj.parse(input);
+                for (const key of Object.keys(obj)) {
+                    const value = obj[key];
+                    if (value && value.datatype === "Set") {
+                        obj[key] = new Set(value.value);
+                    } else if (value && value.datatype === "Map") {
+                        obj[key] = new Map(value.value);
+                    }
+                };
+                return obj as ModulatorInstanceState<T, M>;
             },
             () => ({
                 todo: new Map(),

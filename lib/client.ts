@@ -1,6 +1,7 @@
 import { RdfDereferencer, rdfDereferencer } from "rdf-dereference";
 import { LDES, RDF, TREE } from "@treecg/types";
-import { JsonStreamStringify } from "json-stream-stringify";
+// @ts-ignore
+import bfj from "bfj";
 import { CBDShapeExtractor } from "extract-cbd-shape";
 import { RdfStore } from "rdf-stores";
 import { DataFactory } from "rdf-data-factory";
@@ -183,21 +184,21 @@ export class Client {
 
         // Build state entry to keep track of member versions
         const versionState = this.config.lastVersionOnly
-            ? this.stateFactory.build<Map<string, Date>>(
+            ? await this.stateFactory.build<Map<string, Date>>(
                 "versions",
                 (map) => {
                     const arr = [...map.entries()];
-                    return new JsonStreamStringify(arr);
+                    return bfj.streamify(arr);
                 },
-                (inp) => {
-                    const obj = JSON.parse(inp);
+                async (inp) => {
+                    const obj = await bfj.parse(inp);
                     for (const key of Object.keys(obj)) {
                         try {
                             obj[key] = new Date(obj[key]);
                         } catch (ex: unknown) {
                             // pass
                         }
-                    }
+                    };
                     return new Map(obj);
                 },
                 () => new Map(),
@@ -302,7 +303,7 @@ export class Client {
         // keep on polling the LDES (mutable pages) for new data or finish when fully fetched.
         this.strategy =
             this.ordered !== "none"
-                ? new OrderedStrategy(
+                ? await new OrderedStrategy().init(
                     this.memberManager,
                     this.fetcher,
                     notifier,
@@ -311,7 +312,7 @@ export class Client {
                     this.config.polling,
                     this.config.pollInterval,
                 )
-                : new UnorderedStrategy(
+                : await new UnorderedStrategy().init(
                     this.memberManager,
                     this.fetcher,
                     notifier,

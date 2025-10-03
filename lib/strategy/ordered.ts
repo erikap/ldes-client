@@ -32,7 +32,7 @@ export class OrderedStrategy {
     //
     // With ordering ascending GT relations are important
     // With ordering descending LT relations are important
-    private readonly launchedRelations: Heap<RelationChain>;
+    private launchedRelations: Heap<RelationChain>;
 
     private modulator: Modulator<
         { chain: RelationChain; expected: string[] },
@@ -62,7 +62,7 @@ export class OrderedStrategy {
 
     private logger = getLoggerFor(this);
 
-    constructor(
+    async init(
         memberManager: Manager,
         fetcher: Fetcher,
         notifier: Notifier<StrategyEvents, unknown>,
@@ -70,7 +70,7 @@ export class OrderedStrategy {
         ordered: Ordered,
         polling: boolean,
         pollInterval?: number,
-    ) {
+    ): Promise<OrderedStrategy> {
         this.ordered = ordered;
         this.manager = memberManager;
         this.fetcher = fetcher;
@@ -152,7 +152,7 @@ export class OrderedStrategy {
             },
         };
 
-        this.modulator = factory.create(
+        this.modulator = await factory.create(
             "fetcher",
             new Heap((a, b) => a.item.chain.ordering(b.item.chain)),
             {
@@ -224,6 +224,8 @@ export class OrderedStrategy {
                 return -1;
             });
         }
+
+        return this;
     }
 
     start(url: string, root?: FetchedPage) {

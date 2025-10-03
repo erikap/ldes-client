@@ -36,6 +36,7 @@
   "dependencies": {
     "@treecg/types": "^0.4.6",
     "@types/debug": "^4.1.12",
+    "bfj": "^9.1.2",
     "commander": "^14.0.1",
     "debug": "^4.4.3",
     "extract-cbd-shape": "^0.1.14",

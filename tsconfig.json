@@ -13,7 +13,8 @@
         "moduleResolution": "node",
         "outDir": "dist",
         "declaration": true,
-        "allowSyntheticDefaultImports": true
+        "allowSyntheticDefaultImports": true,
+        "strictPropertyInitialization": false
     },
     "tsc-alias": {
         "resolveFullPaths": true,

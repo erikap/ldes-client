@@ -32,14 +32,14 @@ export class UnorderedStrategy {
 
     private logger = getLoggerFor(this);
 
-    constructor(
+    async init(
         memberManager: Manager,
         fetcher: Fetcher,
         notifier: Notifier<StrategyEvents, unknown>,
         modulatorFactory: ModulatorFactory,
         polling: boolean,
         pollInterval?: number,
-    ) {
+    ): Promise<UnorderedStrategy> {
         this.pollInterval = pollInterval;
         this.notifier = notifier;
         this.manager = memberManager;
@@ -102,7 +102,7 @@ export class UnorderedStrategy {
             },
         };
 
-        this.modulator = modulatorFactory.create<Node, SerializedMember>("fetcher", [], {
+        this.modulator = await modulatorFactory.create<Node, SerializedMember>("fetcher", [], {
             ready: ({ item, index }) => {
                 // Only fetch this node if it hasn't been fetched in the past
                 if (!this.modulator.seen(item.target)) {
@@ -115,6 +115,8 @@ export class UnorderedStrategy {
                 }
             },
         });
+
+        return this;
     }
 
     start(url: string, root?: FetchedPage) {

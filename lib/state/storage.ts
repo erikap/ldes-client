@@ -3,7 +3,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from "node:stream";
 
 interface Storage {
-    getItem(key: string): string;
+    getItem(key: string): Readable;
 
     setItem(key: string, value: Readable): Promise<void>;
 
@@ -24,12 +24,15 @@ if (typeof window === "undefined") {
     }
 
     storage = {
-        getItem: (key: string): string => {
-            const data = fs.readFileSync(key, "utf8");
-            return data;
+        getItem: (key: string): Readable => {
+            if (fs.existsSync(key)) {
+                return fs.createReadStream(key, { encoding: 'utf8' });
+            } else {
+                throw `File ${key} not found on disk`;
+            }
         },
         setItem: async (key: string, value: Readable): Promise<void> => {
-            await pipeline(value, fs.createWriteStream(key));
+            await pipeline(value, fs.createWriteStream(key, { encoding: 'utf8' }));
         },
         removeItem: (key: string) => {
             try {
@@ -42,10 +45,13 @@ if (typeof window === "undefined") {
 } else {
     // Browser environment
     storage = {
-        getItem: (key: string): string => {
+        getItem: (key: string): Readable => {
             const data = localStorage.getItem(key);
-            if (data) return data;
-            throw "Key not found in local storage";
+            if (data) {
+                return Readable.from([data]);
+            } else {
+                throw `Key ${key} not found in local storage`;
+            }
         },
         setItem: async (key: string, value: Readable): Promise<void> => {
             const valueString = await text(value);
